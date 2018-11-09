@@ -2,15 +2,11 @@
   "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "mysqlserverAdminLogin": {
+    "sqlAdministratorLogin": {
       "value": "dbadmin"
     },
-    "mysqlserverAdminLoginPassword": {
-      "value": "Abcd@123456"
-    },
-    "mydbName": {
-      "value": "mydatabase"
-    },
-    "MyAppServierPlanName": {"value": "myserviceplan"}
+    "sqlAdministratorLoginPassword": {
+      "value": "Ansible@1234"
+    }
   }
 }
