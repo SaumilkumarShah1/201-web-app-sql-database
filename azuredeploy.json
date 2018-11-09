@@ -1,0 +1,199 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "MyAppServierPlanName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "MyAppServierPlanSkuName": {
+      "type": "string",
+      "defaultValue": "F1",
+      "allowedValues": [
+        "F1",
+        "D1",
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "metadata": {
+        "description": "Describes plan's pricing tier and capacity. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+      }
+    },
+    "mysqlserverAdminLogin": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mysqlserverAdminLoginPassword": {
+      "type": "securestring"
+    },
+    "mydbName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mydbCollation": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "SQL_Latin1_General_CP1_CI_AS"
+    },
+    "mydbEdition": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "Standard",
+        "Premium"
+      ]
+    },
+    "mydbRequestedServiceObjectiveName": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Basic",
+        "S0",
+        "S1",
+        "S2",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "metadata": {
+        "description": "Describes the performance level for Edition"
+      }
+    }},
+  "variables": {
+    "MyVnetPrefix": "10.0.0.0/16",
+    "MyFrontEndSubnet": "Subnet-1",
+    "MyVnetFrontEndSubnetPrefix": "10.0.0.0/24",
+    "MyBackEndSubnet": "Subnet-2",
+    "MyVnetBackEndSubnetPrefix": "10.0.1.0/24",
+    "MyWebAppName": "[concat('MyWebApp', uniqueString(resourceGroup().id))]",
+    "mysqlserverName": "[concat('mysqlserver', uniqueString(resourceGroup().id))]"},
+  "resources": [
+    {
+      "name": "MyVnet",
+      "type": "Microsoft.Network/virtualNetworks",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-03-30",
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "MyVnet"
+      },
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('MyVnetPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('MyFrontEndSubnet')]",
+            "properties": {
+              "addressPrefix": "[variables('MyVnetFrontEndSubnetPrefix')]"
+            }
+          },
+          {
+            "name": "[variables('MyBackEndSubnet')]",
+            "properties": {
+              "addressPrefix": "[variables('MyVnetBackEndSubnetPrefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[parameters('MyAppServierPlanName')]",
+      "type": "Microsoft.Web/serverfarms",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-08-01",
+      "sku": {
+        "name": "[parameters('MyAppServierPlanSkuName')]"
+      },
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "MyAppServierPlan"
+      },
+      "properties": {
+        "name": "[parameters('MyAppServierPlanName')]",
+        "numberOfWorkers": 1
+      }
+    },
+    {
+      "name": "[variables('MyWebAppName')]",
+      "type": "Microsoft.Web/sites",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-08-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', parameters('MyAppServierPlanName'))]"
+      ],
+      "tags": {
+        "[concat('hidden-related:', resourceId('Microsoft.Web/serverfarms', parameters('MyAppServierPlanName')))]": "Resource",
+        "displayName": "MyWebApp"
+      },
+      "properties": {
+        "name": "[variables('MyWebAppName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('MyAppServierPlanName'))]",
+        "subnet": {
+          "id": "[variables('MyVnetFrontEndSubnetPrefix')]"
+        }
+      }
+    },
+    {
+      "name": "[variables('mysqlserverName')]",
+      "type": "Microsoft.Sql/servers",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2014-04-01-preview",
+      "dependsOn": [ ],
+      "tags": {
+        "displayName": "mysqlserver"
+      },
+      "properties": {
+        "administratorLogin": "[parameters('mysqlserverAdminLogin')]",
+        "administratorLoginPassword": "[parameters('mysqlserverAdminLoginPassword')]",
+        "subnet": {
+          "id": "[variables('MyVnetBackEndSubnetPrefix')]"
+        }
+      },
+      "resources": [
+        {
+          "name": "AllowAllWindowsAzureIps",
+          "type": "firewallrules",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers', variables('mysqlserverName'))]"
+          ],
+          "properties": {
+            "startIpAddress": "0.0.0.0",
+            "endIpAddress": "0.0.0.0"
+          }
+        },
+        {
+          "name": "[parameters('mydbName')]",
+          "type": "databases",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2014-04-01-preview",
+          "dependsOn": [
+            "[resourceId('Microsoft.Sql/servers', variables('mysqlserverName'))]"
+          ],
+          "tags": {
+            "displayName": "mydb"
+          },
+          "properties": {
+            "collation": "[parameters('mydbCollation')]",
+            "edition": "[parameters('mydbEdition')]",
+            "maxSizeBytes": "1073741824",
+            "requestedServiceObjectiveName": "[parameters('mydbRequestedServiceObjectiveName')]"
+          }
+        }
+      ]
+    }],
+  "outputs": {}
+}
