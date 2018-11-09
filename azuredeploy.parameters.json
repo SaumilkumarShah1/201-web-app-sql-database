@@ -10,6 +10,7 @@
     },
     "mydbName": {
       "value": "mydatabase"
-    }
+    },
+    "MyAppServierPlanName": {"value": "myserviceplan"}
   }
 }
